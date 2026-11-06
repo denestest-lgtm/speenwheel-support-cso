@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spin Wheel</title>
+<style>
+  :root{--panel:#141821;--panel2:#1a1f2a;--line:#2a3240;--text:#e8ecf3;--muted:#8b95a7;--accent:#f2b134;--danger:#e8556b}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;color:var(--text);font:14px/1.45 "Segoe UI",system-ui,sans-serif;
+       background:radial-gradient(1000px 640px at 50% -12%,#1b2333 0%,#0b0d12 58%),#0b0d12}
+  .app{display:grid;grid-template-columns:360px minmax(0,1fr);gap:28px;max-width:1180px;margin:0 auto;padding:24px 20px 48px}
+  @media(max-width:900px){.app{grid-template-columns:1fr}}
+  .brand{display:flex;align-items:baseline;gap:10px;margin:0 0 16px}
+  .brand h1{font-size:17px;font-weight:650;margin:0}
+  .brand span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+  .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .card-header h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:0;font-weight:700}
+  .hint{color:var(--muted);font-size:12px}
+  .prow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .prow .dot{flex:0 0 10px;width:10px;height:10px;border-radius:3px}
+  .prow .pname{flex:1 1 auto;min-width:0}
+  .prow .pcopies{flex:0 0 64px;width:64px}
+  .prow .pdel{flex:0 0 24px;width:24px;height:24px;padding:0}
+  input{background:#0e121a;border:1px solid var(--line);border-radius:8px;color:var(--text);
+        padding:7px 8px;font:inherit;font-size:13px;outline:none;min-width:0}
+  input:focus{border-color:#3c4a63;box-shadow:0 0 0 3px rgba(90,130,200,.12)}
+  input[type=number]{padding:7px 4px;text-align:center}
+  .row{display:flex;gap:8px;align-items:center;margin-top:8px}
+  button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#1e2531;
+         color:var(--text);padding:8px 12px;font-size:12.5px}
+  button:hover{background:#252d3c;border-color:#36425a}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .grow{flex:1 1 auto;min-width:0}
+  .tiny{padding:4px 8px;font-size:11px}
+  #copyAll{flex:0 0 74px;width:74px}
+  #players{min-height:10px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;min-height:22px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#1d2431;border:1px solid var(--line);
+        border-radius:999px;padding:3px 6px 3px 9px;font-size:12.5px}
+  .chip b{color:var(--accent);font-size:11px}
+  select{width:100%;background:#0e121a;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px;font:inherit}
+  .stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .stage-wrap{position:relative;width:100%;max-width:600px;aspect-ratio:1/1;margin-top:10px}
+  canvas{display:block;width:100%;height:100%}
+  .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:104px;height:104px;
+       border-radius:50%;border:6px solid #0b0e14;background:radial-gradient(circle at 35% 30%,#3a4356,#161b24 70%);
+       color:#fff;font-weight:800;letter-spacing:.13em;font-size:13px;z-index:4}
+  .hub:disabled{opacity:.55}
+  .pointer{position:absolute;left:50%;top:-10px;transform:translateX(-50%);width:0;height:0;
+           border-left:13px solid transparent;border-right:13px solid transparent;border-top:24px solid #fff;z-index:3}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .lchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#b9c2d1;background:#12161f;
+         border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 7px}
+  .lchip i{width:9px;height:9px;border-radius:2px}
+  .lchip em{font-style:normal;color:var(--muted);font-size:11px}
+  .result{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+          background:rgba(7,9,13,.74);border-radius:24px;z-index:6;padding:16px}
+  .rcard{width:min(380px,92%);background:linear-gradient(180deg,#1e2531,#141922);border:1px solid #313a4d;
+         border-radius:20px;padding:24px 22px 20px;text-align:center}
+  .rcard .lbl{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .rcard .name{font-size:38px;font-weight:800;margin:6px 0 4px;word-break:break-word}
+  .rcard .meta{font-size:12.5px;color:var(--muted);margin-bottom:16px}
+  .ractions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .ractions .full{background:var(--danger);border-color:#c43e53;color:#fff;font-weight:600}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><h1>Spin Wheel</h1><span id="jsbadge">script ready</span></div>
+
+    <section class="card">
+      <h2>Names &amp; slices</h2>
+      <div id="players"></div>
+      <div class="row">
+        <button id="addName" type="button" class="grow">+ Add name</button>
+      </div>
+      <div class="row">
+        <input id="copyAll" type="number" min="1" max="999" value="44" title="Copies per name">
+        <button id="applyAll" class="grow">Set copies for all</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 id="riggedHeader">Rigged order (hidden from viewers)</h2>
+        <button id="toggleRigged" class="tiny" type="button">Hide</button>
+      </div>
+      <div id="riggedBody">
+        <div id="orderList" class="chips"></div>
+        <div class="row">
+          <select id="orderPick" class="grow"></select>
+          <button id="addOrder" type="button">Queue</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>After each spin</h2>
+      <label class="row" style="margin:0;cursor:pointer">
+        <input id="autoRemove" type="checkbox" style="width:15px;height:15px;margin:0;padding:0">
+        <span style="font-size:12.5px">Auto-remove the winner</span>
+      </label>
+      <div class="row"><button id="reset" class="grow tiny" type="button">Reset everything</button></div>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-wrap" id="stageWrap">
+      <canvas id="wheel"></canvas>
+      <div class="pointer"></div>
+      <button class="hub" id="spinBtn" type="button">SPIN</button>
+
+      <div class="result hidden" id="result">
+        <div class="rcard">
+          <div class="lbl">Winner</div>
+          <div class="name" id="rname">-</div>
+          <div class="meta" id="rmeta"></div>
+          <div class="ractions">
+            <button id="removeBtn" class="full" type="button">Remove</button>
+            <button id="keepBtn" type="button">Keep</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+    <div class="hint" id="segCount"></div>
+  </main>
+</div>
+
+<script>
+var PALETTE = [
+  '#ef4b5f','#f2b134','#4cc38a','#4f8ef7','#b07fe0','#f07a3c','#2fb6b6','#e06ca0',
+  '#56ccf2','#2f80ed','#6fcf97','#f2994a','#bb6bd9','#ef5777','#f2c94c','#27ae60'
+];
+var KEY = 'spinwheel.v5';
+var S = {players: [], order: [], autoRemove: false, rot: 0, spinning: false, riggedHidden: false};
+var entries = [], lastResult = null, dpr = 1, size = 600;
+
+var el = function(id){ return document.getElementById(id); };
+var canvas = el('wheel'), ctx = canvas.getContext('2d'), stageWrap = el('stageWrap');
+
+function badge(t){ el('jsbadge').textContent = t; }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function clampInt(v,lo,hi){ v = parseInt(v,10); if(!isFinite(v)) v = lo; return Math.max(lo, Math.min(hi, v)); }
+function mod2pi(a){ var t = Math.PI*2; return ((a % t) + t) % t; }
+
+function getUniqueColor(index){
+  return PALETTE[index % PALETTE.length];
+}
+
+function defaults(){
+  return [['ash',10],['her',10]].map(function(d,i){
+    return {id:uid(), name:d[0], copies:d[1], color:getUniqueColor(i)};
+  });
+}
+
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify({players:S.players, order:S.order, autoRemove:S.autoRemove, riggedHidden:S.riggedHidden})); }catch(e){}
+}
+
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return false;
+    var d = JSON.parse(raw);
+    if(!d || !Array.isArray(d.players) || !d.players.length) return false;
+    var ps = [];
+    for(var i=0;i<d.players.length;i++){
+      var p = d.players[i];
+      if(!p || typeof p !== 'object') continue;
+      ps.push({
+        id: p.id || uid(),
+        name: String(p.name == null ? '' : p.name).slice(0,24),
+        copies: clampInt(p.copies, 1, 999),
+        color: p.color || getUniqueColor(i)
+      });
+    }
+    if(!ps.length) return false;
+    S.players = ps;
+    S.order = Array.isArray(d.order) ? d.order.filter(function(n){return typeof n==='string';}) : [];
+    S.autoRemove = !!d.autoRemove;
+    S.riggedHidden = !!d.riggedHidden;
+    el('autoRemove').checked = S.autoRemove;
+    applyRiggedHiddenState();
+    return true;
+  }catch(e){ return false; }
+}
+
+function rebuild(){
+  entries = [];
+  if (!S.players.length) return;
+  
+  // Mencari jumlah copies maksimum di antara semua pemain
+  var maxCopies = 0;
+  for(var i=0; i<S.players.length; i++){
+    if(S.players[i].copies > maxCopies){
+      maxCopies = S.players[i].copies;
+    }
+  }
+
+  // Menyusun secara bergiliran (Round-Robin Interleaving):
+  // Putaran ke-k mengambil 1 salinan dari setiap pemain (jika pemain masih punya salinan ke-k)
+  for(var k=0; k<maxCopies; k++){
+    for(var i=0; i<S.players.length; i++){
+      var p = S.players[i];
+      if(k < p.copies){
+        entries.push({name: p.name, color: p.color});
+      }
+    }
+  }
+}
+
+function pickWeighted(){
+  var total = 0, i;
+  for(i=0;i<S.players.length;i++) total += S.players[i].copies;
+  if(!total) return null;
+  var r = Math.random()*total;
+  for(i=0;i<S.players.length;i++){ r -= S.players[i].copies; if(r<=0) return S.players[i].name; }
+  return S.players[S.players.length-1].name;
+}
+
+function forcedName(){
+  while(S.order.length && !S.players.some(function(p){return p.name===S.order[0];})) S.order.shift();
+  return S.order.length ? S.order[0] : null;
+}
+
+function removeByName(name){
+  S.players = S.players.filter(function(p){return p.name!==name;});
+  S.order = S.order.filter(function(n){return n!==name;});
+  S.players.forEach(function(p, idx){ p.color = getUniqueColor(idx); });
+  renderPlayers(); sync();
+}
+
+function renderPlayers(){
+  var box = el('players');
+  box.innerHTML = '';
+  if(!S.players.length){
+    var p = document.createElement('p');
+    p.className = 'hint'; p.style.margin = '0 0 6px';
+    p.textContent = 'No names yet - click "+ Add name".';
+    box.appendChild(p);
+    return;
+  }
+  S.players.forEach(function(pl, idx){
+    pl.color = getUniqueColor(idx);
+    var row = document.createElement('div');
+    row.className = 'prow';
+
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = pl.color;
+
+    var nm = document.createElement('input');
+    nm.className = 'pname'; nm.type = 'text'; nm.maxLength = 24; nm.value = pl.name;
+    nm.setAttribute('placeholder','name');
+    nm.oninput = function(){ pl.name = nm.value; sync(); };
+
+    var cp = document.createElement('input');
+    cp.className = 'pcopies'; cp.type = 'number'; cp.min = '1'; cp.max = '999';
+    cp.value = pl.copies; cp.title = 'slices';
+    cp.onchange = function(){ pl.copies = clampInt(cp.value,1,999); cp.value = pl.copies; sync(); };
+
+    var del = document.createElement('button');
+    del.className = 'pdel'; del.type = 'button'; del.textContent = '\u2715';
+    del.style.background = 'transparent'; del.style.color = '#68748a';
+    del.onclick = function(){
+      var i = S.players.indexOf(pl);
+      if(i>=0) S.players.splice(i,1);
+      S.players.forEach(function(p, kidx){ p.color = getUniqueColor(kidx); });
+      renderPlayers(); sync();
+    };
+
+    row.appendChild(dot); row.appendChild(nm); row.appendChild(cp); row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function renderOrder(){
+  var box = el('orderList');
+  box.innerHTML = '';
+  if(!S.order.length){ box.innerHTML = '<span class="hint">empty</span>'; return; }
+  S.order.forEach(function(n,i){
+    var chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = '<b>' + (i+1) + '</b> ' + n + ' ';
+    var x = document.createElement('button');
+    x.type = 'button'; x.textContent = '\u2715';
+    x.style.background = 'transparent'; x.style.border = '0'; x.style.color = '#6b7688';
+    x.onclick = function(){ S.order.splice(i,1); sync(); };
+    chip.appendChild(x);
+    box.appendChild(chip);
+  });
+}
+
+function renderSelect(){
+  var sel = el('orderPick'), cur = sel.value;
+  sel.innerHTML = '';
+  S.players.forEach(function(p){
+    var o = document.createElement('option');
+    o.value = p.name; o.textContent = p.name;
+    sel.appendChild(o);
+  });
+  if(S.players.some(function(p){return p.name===cur;})) sel.value = cur;
+}
+
+function renderLegend(){
+  el('legend').innerHTML = S.players.map(function(p){
+    return '<span class="lchip"><i style="background:' + p.color + '"></i>' + p.name +
+           ' <em>&times;' + p.copies + '</em></span>';
+  }).join('');
+}
+
+function updateMeta(){
+  var n = entries.length;
+  el('segCount').textContent = n + ' slices on the wheel';
+  el('spinBtn').disabled = S.spinning || n < 2;
+}
+
+function sync(){
+  rebuild(); renderLegend(); renderOrder(); renderSelect(); updateMeta(); draw(); save();
+}
+
+function resize(){
+  var r = stageWrap.getBoundingClientRect();
+  size = Math.max(220, r.width || 600);
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(size*dpr);
+  canvas.height = Math.round(size*dpr);
+  draw();
+}
+
+function draw(){
+  var w = size, h = size;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  var cx = w/2, cy = h/2, R = Math.min(w,h)/2 - 12;
+
+  ctx.beginPath(); ctx.arc(cx,cy,R+8,0,Math.PI*2);
+  ctx.fillStyle = '#0e1218'; ctx.fill();
+
+  var n = entries.length;
+  if(!n) return;
+
+  var step = Math.PI*2/n, i;
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(S.rot);
+  for(i=0;i<n;i++){
+    var a0 = -Math.PI/2 + i*step;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,a0,a0+step); ctx.closePath();
+    ctx.fillStyle = entries[i].color; ctx.fill();
+    ctx.strokeStyle = 'rgba(9,11,15,.32)'; ctx.lineWidth = n>120 ? 0.7 : 1; ctx.stroke();
+  }
+  if(step > 0.115){
+    var fs = Math.max(9, Math.min(19, step*R*0.42));
+    ctx.font = '700 ' + fs.toFixed(1) + 'px "Segoe UI",sans-serif';
+    ctx.fillStyle = '#10141c'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    var maxW = R*0.62;
+    for(i=0;i<n;i++){
+      var mid = -Math.PI/2 + (i+0.5)*step, lab = entries[i].name;
+      while(lab.length>1 && ctx.measureText(lab).width > maxW) lab = lab.slice(0,-1);
+      ctx.save(); ctx.rotate(mid); ctx.fillText(lab, R-14, 0); ctx.restore();
+    }
+  }
+  ctx.restore();
+
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.stroke();
+}
+
+function spin(){
+  if(S.spinning || entries.length < 2) return;
+  if(!el('result').classList.contains('hidden')) return; // result card is open: don't hide + re-spin
+  S.spinning = true;
+  var btn = el('spinBtn'); btn.disabled = true; btn.textContent = '...';
+  el('result').classList.add('hidden');
+
+  var forced = forcedName();
+  var name = forced !== null ? forced : pickWeighted();
+  if(name === null) name = entries[0].name;
+
+  var idxs = [];
+  for(var i=0;i<entries.length;i++) if(entries[i].name === name) idxs.push(i);
+  var idx = idxs.length ? idxs[Math.floor(Math.random()*idxs.length)] : 0;
+
+  var n = entries.length, step = Math.PI*2/n;
+  var jitter = (Math.random()-0.5)*step*0.66;
+  var desired = mod2pi(-(idx+0.5)*step + jitter);
+  var cur = mod2pi(S.rot);
+  var delta = mod2pi(desired - cur);
+  var turns = 6 + Math.floor(Math.random()*3);
+  var target = S.rot + turns*Math.PI*2 + delta;
+  var dur = 4300 + Math.random()*700;
+  var from = S.rot, t0 = performance.now();
+
+  function frame(now){
+    var t = (now-t0)/dur; if(t>1) t = 1;
+    var e = 1 - Math.pow(1-t, 4.2);
+    S.rot = from + (target-from)*e;
+    draw();
+    if(t<1) requestAnimationFrame(frame);
+    else { S.rot = target; draw(); finish(idx, forced); }
+  }
+  requestAnimationFrame(frame);
+}
+
+function finish(idx, forced){
+  S.spinning = false;
+  var btn = el('spinBtn'); btn.textContent = 'SPIN'; btn.disabled = false;
+
+  var winner = entries[idx].name;
+  var pl = S.players.filter(function(p){return p.name===winner;})[0];
+  var copies = pl ? pl.copies : 1;
+  if(forced !== null) S.order.shift();
+
+  var removed = false;
+  if(S.autoRemove){ removeByName(winner); removed = true; }
+
+  lastResult = {name:winner, copies:copies, removed:removed};
+  el('rname').textContent = winner;
+  el('rmeta').textContent = removed ? 'Removed - excluded from the next spin'
+                                   : copies + ' x "' + winner + '" on this wheel';
+  el('removeBtn').style.display = removed ? 'none' : '';
+  el('removeBtn').textContent = 'Remove all ' + copies + ' x "' + winner + '"';
+  el('result').classList.remove('hidden');
+  sync();
+}
+
+function uiAddName(){
+  try{
+    var n = S.players.length + 1;
+    S.players.push({
+      id: uid(),
+      name: 'Player ' + n,
+      copies: 1,
+      color: getUniqueColor(S.players.length)
+    });
+    renderPlayers(); sync();
+    var ins = document.querySelectorAll('#players .pname');
+    if(ins.length){ ins[ins.length-1].focus(); ins[ins.length-1].select(); }
+  }catch(e){
+    alert('add failed: ' + (e && e.message ? e.message : e));
+  }
+}
+
+function applyRiggedHiddenState(){
+  var body = el('riggedBody');
+  var header = el('riggedHeader');
+  var btn = el('toggleRigged');
+  if(S.riggedHidden){
+    body.classList.add('hidden');
+    header.textContent = 'wish you have best luck';
+    btn.textContent = 'Unhide';
+  } else {
+    body.classList.remove('hidden');
+    header.textContent = 'Rigged order (hidden from viewers)';
+    btn.textContent = 'Hide';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  el('spinBtn').onclick = spin;
+  el('addName').onclick = uiAddName;
+  el('applyAll').onclick = function(){
+    var v = clampInt(el('copyAll').value, 1, 999);
+    el('copyAll').value = v;
+    S.players.forEach(function(p){ p.copies = v; });
+    renderPlayers(); sync();
+  };
+  el('addOrder').onclick = function(){
+    var v = el('orderPick').value;
+    if(v){ S.order.push(v); sync(); }
+  };
+  el('toggleRigged').onclick = function(){
+    S.riggedHidden = !S.riggedHidden;
+    applyRiggedHiddenState();
+    save();
+  };
+  el('autoRemove').onchange = function(e){ S.autoRemove = e.target.checked; save(); };
+  el('keepBtn').onclick = function(){ el('result').classList.add('hidden'); };
+  el('result').addEventListener('click', function(e){
+    if(e.target === this) this.classList.add('hidden'); // click outside the card closes it
+  });
+  el('removeBtn').onclick = function(){
+    if(!lastResult) return;
+    removeByName(lastResult.name);
+    el('rmeta').textContent = 'Removed - excluded from the next spin';
+    el('removeBtn').style.display = 'none';
+  };
+  el('reset').onclick = function(){
+    if(!confirm('Reset?')) return;
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    S.players = defaults(); S.order = []; S.autoRemove = false; S.riggedHidden = false; S.rot = 0;
+    el('autoRemove').checked = false;
+    applyRiggedHiddenState();
+    renderPlayers(); sync();
+  };
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' || e.code === 'Escape'){
+      var esc = el('result');
+      if(!esc.classList.contains('hidden')){ e.preventDefault(); esc.classList.add('hidden'); }
+      return;
+    }
+    if(e.code !== 'Space' && e.key !== ' ') return;
+    if(e.repeat) return; // held Space must not start another spin when the result appears
+
+    var t = e.target;
+    var tag = (t && t.tagName) ? t.tagName.toUpperCase() : '';
+    var isControl = !!(t && (t.isContentEditable || tag === 'INPUT' || tag === 'SELECT' ||
+                             tag === 'TEXTAREA' || tag === 'BUTTON'));
+    if(isControl) return; // let the focused control handle Space itself
+
+    var res = el('result');
+    if(!res.classList.contains('hidden')){
+      e.preventDefault();
+      res.classList.add('hidden'); // Space closes the winner card instead of spinning again
+      return;
+    }
+    e.preventDefault();
+    spin();
+  });
+
+  try{
+    if(!load()) S.players = defaults();
+    el('autoRemove').checked = S.autoRemove;
+    applyRiggedHiddenState();
+    renderPlayers(); sync(); resize();
+    badge('engine ready');
+  }catch(e){
+    badge('script error');
+  }
+});
+window.addEventListener('resize', resize);
+</script>
+</body>
+</html>
